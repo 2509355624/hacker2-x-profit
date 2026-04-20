@@ -7,7 +7,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from .services import video_to_text
 from utils.tools.videoTools import AsyncDouyinVideoParser
-from .ai.service import optimize_text
+from .ai.service import optimize_text, summarize_text
 
 def index(request):
     return render(request, "index.html")
@@ -18,7 +18,7 @@ def api_video2text(request):
     try:
         import json
         body = json.loads(request.body) if request.body else {}
-        simplified = body.get("simplified", False)
+        simplified = body.get("simplified", True)
 
         video_file = request.FILES.get("video")
         if not video_file:
@@ -52,7 +52,7 @@ def api_parse_douyin(request):
         import json
         body = json.loads(request.body)
         share_url = body.get("url")
-        simplified = body.get("simplified", False)
+        simplified = body.get("simplified", True)
 
         if not share_url:
             return JsonResponse({"code": 400, "msg": "请提供抖音分享链接"})
@@ -111,3 +111,34 @@ def api_optimize_text(request):
 
     except Exception as e:
         return JsonResponse({"code": 500, "msg": f"优化失败：{str(e)}"})
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_summarize_text(request):
+    try:
+        import json
+        body = json.loads(request.body)
+        text = body.get("text", "")
+        question = body.get("question", "")
+
+        if not text:
+            return JsonResponse({"code": 400, "msg": "没有可总结的文本"})
+
+        result = summarize_text(text, question)
+
+        if result.get("success"):
+            return JsonResponse({
+                "code": 200,
+                "msg": "总结成功",
+                "data": {
+                    "summary": result["summary"]
+                }
+            })
+        else:
+            return JsonResponse({
+                "code": 500,
+                "msg": f"总结失败：{result.get('error', '未知错误')}"
+            })
+
+    except Exception as e:
+        return JsonResponse({"code": 500, "msg": f"总结失败：{str(e)}"})

@@ -16,7 +16,7 @@
                     <input type="file" id="video" accept="video/*" class="block w-full border p-2">
                     <div class="flex items-center gap-4 mt-2">
                         <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox" id="uploadSimplified" class="w-4 h-4">
+                            <input type="checkbox" id="uploadSimplified" class="w-4 h-4" checked>
                             <span class="text-sm">转换为简体</span>
                         </label>
                         <button onclick="uploadVideo()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">开始转写</button>
@@ -30,7 +30,7 @@
                     <input type="text" id="douyinUrl" placeholder="粘贴抖音分享链接，如 https://v.douyin.com/xxxxx" class="block w-full border p-2">
                     <div class="flex items-center gap-4 mt-2">
                         <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox" id="douyinSimplified" class="w-4 h-4">
+                            <input type="checkbox" id="douyinSimplified" class="w-4 h-4" checked>
                             <span class="text-sm">转换为简体</span>
                         </label>
                         <button onclick="parseDouyin()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">解析并转写</button>
@@ -57,25 +57,38 @@
                     </div>
                 </div>
 
-                <div id="aiSection" class="hidden border-t pt-4">
-                    <h3 class="font-bold mb-2">AI 优化</h3>
-                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3 text-sm">
-                        <p class="text-yellow-700">💡 提示：选中下方文本框中的部分内容，可只优化选中文本；不选择则优化全部内容。</p>
+                <div id="aiSection" class="hidden border-t pt-4 space-y-4">
+                    <div>
+                        <h3 class="font-bold mb-2">AI优化转写结果</h3>
+                        <div class="flex items-center gap-4 mb-3">
+                            <span class="text-sm text-gray-600">拆分长度：</span>
+                            <select id="chunkSize" class="border rounded px-2 py-1">
+                                <option value="500">500字符</option>
+                                <option value="1000">1000字符</option>
+                                <option value="1500">1500字符</option>
+                                <option value="2000" selected>2000字符</option>
+                            </select>
+                            <button onclick="optimizeText()" id="optimizeBtn" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">
+                                🤖 AI优化转写结果
+                            </button>
+                        </div>
+                        <div id="optimizeStatus" class="text-sm text-gray-500"></div>
                     </div>
-                    <div class="flex items-center gap-4 mb-3">
-                        <span class="text-sm text-gray-600">拆分长度：</span>
-                        <select id="chunkSize" class="border rounded px-2 py-1">
-                            <option value="500">500字符</option>
-                            <option value="1000">1000字符</option>
-                            <option value="2000" selected>2000字符</option>
-                            <option value="3000">3000字符</option>
-                            <option value="5000">5000字符</option>
-                        </select>
-                        <button onclick="optimizeText()" id="optimizeBtn" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">
-                            🤖 AI优化文本
+
+                    <div class="border-t pt-4">
+                        <h3 class="font-bold mb-2">AI总结视频内容</h3>
+                        <div class="mb-3">
+                            <input type="text" id="summarizeQuestion" placeholder="输入你想了解的问题（可选，不填则总结全文）" class="w-full border p-2 rounded">
+                        </div>
+                        <button onclick="summarizeText()" id="summarizeBtn" class="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600">
+                            🤖 AI总结视频
                         </button>
+                        <div id="summarizeStatus" class="text-sm text-gray-500 mt-2"></div>
+                        <div class="flex items-start gap-2 mt-2">
+                            <div id="summarizeResult" class="flex-1 p-3 bg-gray-50 rounded border text-sm whitespace-pre-wrap"></div>
+                            <button onclick="copySummarize()" id="copySummarizeBtn" class="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-300 hidden">复制总结</button>
+                        </div>
                     </div>
-                    <div id="optimizeStatus" class="text-sm text-gray-500"></div>
                 </div>
             </div>
         </div>
@@ -120,17 +133,29 @@
             textarea.select();
         }
 
+        function copySummarize() {
+            const summary = document.getElementById('summarizeResult').textContent;
+            if (summary) {
+                navigator.clipboard.writeText(summary).then(() => {
+                    alert('总结已复制到剪贴板');
+                });
+            }
+        }
+
         function clearText() {
             document.getElementById('textResult').value = '';
             document.getElementById('srtResult').value = '';
             document.getElementById('textStats').textContent = '';
             document.getElementById('aiSection').classList.add('hidden');
+            document.getElementById('summarizeResult').textContent = '';
+            document.getElementById('copySummarizeBtn').classList.add('hidden');
         }
 
         function showResult(data) {
             document.getElementById('textResult').value = data.transcription.full_text;
             document.getElementById('srtResult').value = data.transcription.srt_content;
             document.getElementById('aiSection').classList.remove('hidden');
+            document.getElementById('summarizeResult').textContent = '';
             updateTextStats();
         }
 
@@ -196,8 +221,7 @@
 
         async function optimizeText() {
             const textarea = document.getElementById('textResult');
-            const selectedText = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
-            const textToOptimize = selectedText || textarea.value;
+            const textToOptimize = textarea.value;
 
             if (!textToOptimize.trim()) {
                 alert('没有可优化的文本');
@@ -224,13 +248,7 @@
                 const data = await res.json();
 
                 if (data.code === 200) {
-                    if (selectedText) {
-                        const start = textarea.selectionStart;
-                        const end = textarea.selectionEnd;
-                        textarea.value = textarea.value.substring(0, start) + data.data.optimized_text + textarea.value.substring(end);
-                    } else {
-                        textarea.value = data.data.optimized_text;
-                    }
+                    textarea.value = data.data.optimized_text;
                     updateTextStats();
                     status.textContent = '优化完成！';
                 } else {
@@ -242,7 +260,49 @@
                 status.textContent = '优化失败';
             } finally {
                 btn.disabled = false;
-                btn.textText = '🤖 AI优化文本';
+                btn.textContent = '🤖 AI优化转写结果';
+            }
+        }
+
+        async function summarizeText() {
+            const text = document.getElementById('textResult').value;
+            if (!text.trim()) {
+                alert('没有可总结的文本');
+                return;
+            }
+
+            const question = document.getElementById('summarizeQuestion').value.trim();
+            const btn = document.getElementById('summarizeBtn');
+            const status = document.getElementById('summarizeStatus');
+            const resultDiv = document.getElementById('summarizeResult');
+
+            btn.disabled = true;
+            btn.textContent = '总结中...';
+            status.textContent = '正在总结，请稍候...';
+            resultDiv.textContent = '';
+
+            try {
+                const res = await fetch('/api/summarize_text', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({text: text, question: question})
+                });
+                const data = await res.json();
+
+                if (data.code === 200) {
+                    resultDiv.textContent = data.data.summary;
+                    document.getElementById('copySummarizeBtn').classList.remove('hidden');
+                    status.textContent = '总结完成！';
+                } else {
+                    alert(data.msg);
+                    status.textContent = '总结失败';
+                }
+            } catch (e) {
+                alert('总结失败：' + e.message);
+                status.textContent = '总结失败';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🤖 AI总结视频';
             }
         }
     </script>
