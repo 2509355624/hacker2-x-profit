@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>视频转文本工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+    <div class="max-w-6xl mx-auto bg-white p-8 rounded-xl shadow">
+        <h1 class="text-2xl font-bold mb-4">视频提取文本/字幕</h1>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+                <div class="mb-4">
+                    <h2 class="font-bold mb-2">方式一：上传本地视频</h2>
+                    <input type="file" id="video" accept="video/*" class="block w-full border p-2">
+                    <div class="flex items-center gap-4 mt-2">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="uploadSimplified" class="w-4 h-4">
+                            <span class="text-sm">转换为简体</span>
+                        </label>
+                        <button onclick="uploadVideo()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">开始转写</button>
+                    </div>
+                </div>
+
+                <div class="border-t my-4"></div>
+
+                <div class="mb-4">
+                    <h2 class="font-bold mb-2">方式二：抖音链接解析</h2>
+                    <input type="text" id="douyinUrl" placeholder="粘贴抖音分享链接，如 https://v.douyin.com/xxxxx" class="block w-full border p-2">
+                    <div class="flex items-center gap-4 mt-2">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="douyinSimplified" class="w-4 h-4">
+                            <span class="text-sm">转换为简体</span>
+                        </label>
+                        <button onclick="parseDouyin()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">解析并转写</button>
+                    </div>
+                </div>
+
+                <div id="loading" class="hidden text-blue-600 font-medium">处理中，请等待...</div>
+            </div>
+
+            <div>
+                <div class="mb-4 flex items-center justify-between">
+                    <h2 class="font-bold">转写结果</h2>
+                    <div id="textStats" class="text-sm text-gray-500"></div>
+                </div>
+
+                <div class="mb-4">
+                    <textarea id="textResult" readonly
+                        class="w-full border p-3 rounded-lg h-64 resize-y font-mono text-sm"
+                        placeholder="转写结果将显示在这里..."></textarea>
+                    <div class="flex gap-2 mt-2">
+                        <button onclick="copyText()" class="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-300">复制文本</button>
+                        <button onclick="selectAllText()" class="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-300">全选</button>
+                        <button onclick="clearText()" class="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-300">清空</button>
+                    </div>
+                </div>
+
+                <div id="aiSection" class="hidden border-t pt-4">
+                    <h3 class="font-bold mb-2">AI 优化</h3>
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3 text-sm">
+                        <p class="text-yellow-700">💡 提示：选中下方文本框中的部分内容，可只优化选中文本；不选择则优化全部内容。</p>
+                    </div>
+                    <div class="flex items-center gap-4 mb-3">
+                        <span class="text-sm text-gray-600">拆分长度：</span>
+                        <select id="chunkSize" class="border rounded px-2 py-1">
+                            <option value="500">500字符</option>
+                            <option value="1000">1000字符</option>
+                            <option value="2000" selected>2000字符</option>
+                            <option value="3000">3000字符</option>
+                            <option value="5000">5000字符</option>
+                        </select>
+                        <button onclick="optimizeText()" id="optimizeBtn" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">
+                            🤖 AI优化文本
+                        </button>
+                    </div>
+                    <div id="optimizeStatus" class="text-sm text-gray-500"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="border-t my-6"></div>
+
+        <div>
+            <h2 class="font-bold mb-2">SRT字幕</h2>
+            <textarea id="srtResult" readonly
+                class="w-full border p-3 rounded-lg h-40 resize-y font-mono text-sm"
+                placeholder="SRT字幕将显示在这里..."></textarea>
+            <div class="flex gap-2 mt-2">
+                <button onclick="copySrt()" class="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-300">复制SRT</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateTextStats() {
+            const text = document.getElementById('textResult').value;
+            const len = text.length;
+            const chars = len.toLocaleString();
+            document.getElementById('textStats').textContent = `字符数：${chars}`;
+        }
+
+        function copyText() {
+            const text = document.getElementById('textResult').value;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('文本已复制到剪贴板');
+            });
+        }
+
+        function copySrt() {
+            const srt = document.getElementById('srtResult').value;
+            navigator.clipboard.writeText(srt).then(() => {
+                alert('SRT已复制到剪贴板');
+            });
+        }
+
+        function selectAllText() {
+            const textarea = document.getElementById('textResult');
+            textarea.select();
+        }
+
+        function clearText() {
+            document.getElementById('textResult').value = '';
+            document.getElementById('srtResult').value = '';
+            document.getElementById('textStats').textContent = '';
+            document.getElementById('aiSection').classList.add('hidden');
+        }
+
+        function showResult(data) {
+            document.getElementById('textResult').value = data.transcription.full_text;
+            document.getElementById('srtResult').value = data.transcription.srt_content;
+            document.getElementById('aiSection').classList.remove('hidden');
+            updateTextStats();
+        }
+
+        async function uploadVideo() {
+            const file = document.getElementById('video').files[0];
+            if (!file) return alert('请选择视频');
+
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('aiSection').classList.add('hidden');
+
+            const simplified = document.getElementById('uploadSimplified').checked;
+            const formData = new FormData();
+            formData.append('video', file);
+            formData.append('simplified', simplified);
+
+            try {
+                const res = await fetch('/api/video2text', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                document.getElementById('loading').classList.add('hidden');
+                if (data.code === 200) {
+                    showResult(data.data);
+                } else {
+                    alert(data.msg);
+                }
+            } catch (e) {
+                document.getElementById('loading').classList.add('hidden');
+                alert('上传失败：' + e.message);
+            }
+        }
+
+        async function parseDouyin() {
+            const url = document.getElementById('douyinUrl').value.trim();
+            if (!url) return alert('请输入抖音分享链接');
+
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('aiSection').classList.add('hidden');
+
+            const simplified = document.getElementById('douyinSimplified').checked;
+
+            try {
+                const res = await fetch('/api/parse_douyin', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({url: url, simplified: simplified})
+                });
+                const data = await res.json();
+
+                document.getElementById('loading').classList.add('hidden');
+                if (data.code === 200) {
+                    showResult(data.data);
+                } else {
+                    alert(data.msg);
+                }
+            } catch (e) {
+                document.getElementById('loading').classList.add('hidden');
+                alert('解析失败：' + e.message);
+            }
+        }
+
+        async function optimizeText() {
+            const textarea = document.getElementById('textResult');
+            const selectedText = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
+            const textToOptimize = selectedText || textarea.value;
+
+            if (!textToOptimize.trim()) {
+                alert('没有可优化的文本');
+                return;
+            }
+
+            const chunkSize = parseInt(document.getElementById('chunkSize').value);
+            const btn = document.getElementById('optimizeBtn');
+            const status = document.getElementById('optimizeStatus');
+
+            btn.disabled = true;
+            btn.textContent = '优化中...';
+            status.textContent = '正在优化，请稍候...';
+
+            try {
+                const res = await fetch('/api/optimize_text', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        text: textToOptimize,
+                        chunk_size: chunkSize
+                    })
+                });
+                const data = await res.json();
+
+                if (data.code === 200) {
+                    if (selectedText) {
+                        const start = textarea.selectionStart;
+                        const end = textarea.selectionEnd;
+                        textarea.value = textarea.value.substring(0, start) + data.data.optimized_text + textarea.value.substring(end);
+                    } else {
+                        textarea.value = data.data.optimized_text;
+                    }
+                    updateTextStats();
+                    status.textContent = '优化完成！';
+                } else {
+                    alert(data.msg);
+                    status.textContent = '优化失败';
+                }
+            } catch (e) {
+                alert('优化失败：' + e.message);
+                status.textContent = '优化失败';
+            } finally {
+                btn.disabled = false;
+                btn.textText = '🤖 AI优化文本';
+            }
+        }
+    </script>
+</body>
+</html>
