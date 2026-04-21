@@ -23,7 +23,7 @@ class AIConfig:
     }
 
     @classmethod
-    def get_model_config(cls, model_name: str = 'Doubao-Seed-2.0-lite'):
+    def get_model_config(cls, model_name: str = 'deepseek-r1-250528'):
         config = cls.MODEL_MAPPING[model_name].copy()
         return config
 
