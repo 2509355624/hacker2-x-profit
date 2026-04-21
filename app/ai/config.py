@@ -1,15 +1,20 @@
 from django.conf import settings
 
-DOUBAO_API_KEY = settings.DOUBAO_API_KEY
-DOUBAO_BASE_URL = settings.DOUBAO_BASE_URL
+VOLCANO_API_KEY = settings.VOLCANO_API_KEY
+VOLCANO_BASE_URL = settings.VOLCANO_BASE_URL
 
 
 class AIConfig:
     MODEL_MAPPING = {
         'deepseek-r1': {
             'model': 'deepseek-r1-250528',
-            'base_url': DOUBAO_BASE_URL,
-            'api_key': DOUBAO_API_KEY
+            'base_url': VOLCANO_BASE_URL,
+            'api_key': VOLCANO_API_KEY
+        },
+        'Doubao-Seed-2.0-lite': {
+            'model': 'doubao-seed-2-0-lite-260215',
+            'base_url': VOLCANO_BASE_URL,
+            'api_key': VOLCANO_API_KEY
         }
     }
 
@@ -18,7 +23,7 @@ class AIConfig:
     }
 
     @classmethod
-    def get_model_config(cls, model_name: str = 'deepseek-r1'):
+    def get_model_config(cls, model_name: str = 'Doubao-Seed-2.0-lite'):
         config = cls.MODEL_MAPPING[model_name].copy()
         return config
 

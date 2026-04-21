@@ -12,9 +12,17 @@ from .ai.service import optimize_text, summarize_text
 def index(request):
     return render(request, "index.html")
 
+def _cleanup_file(filepath):
+    if filepath and os.path.exists(filepath):
+        try:
+            os.remove(filepath)
+        except Exception:
+            pass
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def api_video2text(request):
+    video_path = None
     try:
         import json
         body = json.loads(request.body) if request.body else {}
@@ -34,8 +42,6 @@ def api_video2text(request):
 
         result = video_to_text(video_path, convert_to_simplified=simplified)
 
-        os.remove(video_path)
-
         return JsonResponse({
             "code": 200,
             "msg": "转写成功",
@@ -44,10 +50,13 @@ def api_video2text(request):
 
     except Exception as e:
         return JsonResponse({"code": 500, "msg": f"失败：{str(e)}"})
+    finally:
+        _cleanup_file(video_path)
 
 @csrf_exempt
 @require_http_methods(["POST"])
 def api_parse_douyin(request):
+    video_path = None
     try:
         import json
         body = json.loads(request.body)
@@ -62,11 +71,9 @@ def api_parse_douyin(request):
         os.makedirs(temp_dir, exist_ok=True)
 
         result = parser.parse_and_download(share_url, temp_dir)
-
         video_path = result['path']
-        transcription = video_to_text(video_path, convert_to_simplified=simplified)
 
-        os.remove(video_path)
+        transcription = video_to_text(video_path, convert_to_simplified=simplified)
 
         return JsonResponse({
             "code": 200,
@@ -79,6 +86,8 @@ def api_parse_douyin(request):
 
     except Exception as e:
         return JsonResponse({"code": 500, "msg": f"解析失败：{str(e)}"})
+    finally:
+        _cleanup_file(video_path)
 
 @csrf_exempt
 @require_http_methods(["POST"])

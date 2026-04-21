@@ -31,5 +31,5 @@ ROOT_URLCONF = "video2text.urls"
 TEMPLATES = [{"BACKEND": "django.template.backends.django.DjangoTemplates","DIRS": [BASE_DIR / "app" / "templates"],}]
 WSGI_APPLICATION = "video2text.wsgi.application"
 
-DOUBAO_API_KEY = os.getenv("DOUBAO_API_KEY", "")
-DOUBAO_BASE_URL = os.getenv("DOUBAO_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
+VOLCANO_API_KEY = os.getenv("VOLCANO_API_KEY", "")
+VOLCANO_BASE_URL = os.getenv("VOLCANO_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")

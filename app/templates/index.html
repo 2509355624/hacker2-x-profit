@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>视频转文本工具</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body class="bg-gray-100 p-6">
     <div class="max-w-6xl mx-auto bg-white p-8 rounded-xl shadow">
@@ -135,10 +136,15 @@
 
         function copySummarize() {
             const summary = document.getElementById('summarizeResult').textContent;
-            if (summary) {
+            if (summary && summary.trim()) {
                 navigator.clipboard.writeText(summary).then(() => {
                     alert('总结已复制到剪贴板');
+                }).catch(err => {
+                    console.error('复制失败:', err);
+                    alert('复制失败，请重试');
                 });
+            } else {
+                alert('没有可复制的总结内容');
             }
         }
 
@@ -147,7 +153,7 @@
             document.getElementById('srtResult').value = '';
             document.getElementById('textStats').textContent = '';
             document.getElementById('aiSection').classList.add('hidden');
-            document.getElementById('summarizeResult').textContent = '';
+            document.getElementById('summarizeResult').innerHTML = '';
             document.getElementById('copySummarizeBtn').classList.add('hidden');
         }
 
@@ -155,7 +161,7 @@
             document.getElementById('textResult').value = data.transcription.full_text;
             document.getElementById('srtResult').value = data.transcription.srt_content;
             document.getElementById('aiSection').classList.remove('hidden');
-            document.getElementById('summarizeResult').textContent = '';
+            document.getElementById('summarizeResult').innerHTML = '';
             updateTextStats();
         }
 
@@ -290,7 +296,7 @@
                 const data = await res.json();
 
                 if (data.code === 200) {
-                    resultDiv.textContent = data.data.summary;
+                    resultDiv.innerHTML = marked.parse(data.data.summary);
                     document.getElementById('copySummarizeBtn').classList.remove('hidden');
                     status.textContent = '总结完成！';
                 } else {
