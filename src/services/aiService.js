@@ -5,12 +5,29 @@ const openai = new OpenAI({
   baseURL: process.env.VOLCANO_BASE_URL
 });
 
-const MODEL_NAME = process.env.AI_MODEL || 'Doubao-Seed-2.0-lite';
+let MODEL_MAPPING = {};
+try {
+  MODEL_MAPPING = JSON.parse(process.env.MODEL_MAPPING || '{}');
+} catch (e) {
+  console.error('Failed to parse MODEL_MAPPING from env:', e.message);
+}
 
-const MODEL_MAPPING = {
-  'deepseek-r1': 'deepseek-r1-250528',
-  'Doubao-Seed-2.0-lite': 'doubao-seed-2-0-lite-260215'
-};
+const DEFAULT_MODEL = process.env.AI_MODEL || null;
+
+function getModelId(modelName) {
+  const mapping = MODEL_MAPPING[modelName];
+  if (mapping && mapping.model) {
+    return mapping.model;
+  }
+  return modelName;
+}
+
+function createCustomClient(customConfig) {
+  return new OpenAI({
+    apiKey: customConfig.api_key,
+    baseURL: customConfig.base_url
+  });
+}
 
 function splitText(text, chunkSize = 2000) {
   const sentences = text.split(/([。！？\n]+)/);
@@ -40,11 +57,19 @@ function splitText(text, chunkSize = 2000) {
   return chunks.length > 0 ? chunks : [text];
 }
 
-async function callAI(prompt) {
-  const model = MODEL_MAPPING[MODEL_NAME] || MODEL_MAPPING['Doubao-Seed-2.0-lite'];
+async function callAI(prompt, modelName = null, customConfig = null) {
+  let client = openai;
+  let modelId;
 
-  const response = await openai.chat.completions.create({
-    model: model,
+  if (customConfig) {
+    client = createCustomClient(customConfig);
+    modelId = customConfig.model;
+  } else {
+    modelId = getModelId(modelName || DEFAULT_MODEL);
+  }
+
+  const response = await client.chat.completions.create({
+    model: modelId,
     messages: [{ role: "user", content: prompt }],
     temperature: 0
   });
@@ -52,7 +77,7 @@ async function callAI(prompt) {
   return response.choices[0].message.content.trim();
 }
 
-async function optimizeChunk(chunk) {
+async function optimizeChunk(chunk, modelName, customConfig) {
   const prompt = `你是一个专业的语音识别文本优化助手。以下文本是从视频/音频中通过AI语音识别得到的，可能存在同音字错误、简繁体混杂、标点错误等问题。
 
 请对以下文本进行优化：
@@ -69,13 +94,13 @@ ${chunk}
 
 优化后：`;
 
-  return callAI(prompt);
+  return callAI(prompt, modelName, customConfig);
 }
 
-async function optimizeText(text, chunkSize = 2000) {
+async function optimizeText(text, chunkSize = 2000, modelName = null, customConfig = null) {
   try {
     if (text.length <= chunkSize) {
-      const optimized = await optimizeChunk(text);
+      const optimized = await optimizeChunk(text, modelName, customConfig);
       return {
         success: true,
         optimized_text: optimized,
@@ -88,7 +113,7 @@ async function optimizeText(text, chunkSize = 2000) {
 
     for (let i = 0; i < chunks.length; i++) {
       try {
-        const optimized = await optimizeChunk(chunks[i]);
+        const optimized = await optimizeChunk(chunks[i], modelName, customConfig);
         optimizedChunks.push(optimized);
       } catch (error) {
         return {
@@ -115,7 +140,7 @@ async function optimizeText(text, chunkSize = 2000) {
   }
 }
 
-async function summarizeText(text, question = "") {
+async function summarizeText(text, question = "", modelName = null, customConfig = null) {
   try {
     let prompt;
 
@@ -148,7 +173,7 @@ ${text}
 总结：`;
     }
 
-    const summary = await callAI(prompt);
+    const summary = await callAI(prompt, modelName, customConfig);
 
     return {
       success: true,
@@ -164,5 +189,7 @@ ${text}
 
 module.exports = {
   optimizeText,
-  summarizeText
+  summarizeText,
+  DEFAULT_MODEL,
+  MODEL_MAPPING
 };

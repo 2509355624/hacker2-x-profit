@@ -110,13 +110,13 @@ app.post('/api/parse_douyin', async (req, res) => {
 
 app.post('/api/optimize_text', async (req, res) => {
   try {
-    const { text, chunk_size = 2000 } = req.body;
+    const { text, chunk_size = 2000, model = null, custom_config = null } = req.body;
 
     if (!text) {
       return res.status(400).json({ code: 400, msg: '没有可优化的文本' });
     }
 
-    const result = await optimizeText(text, chunk_size);
+    const result = await optimizeText(text, chunk_size, model, custom_config);
 
     if (result.success) {
       res.json({ code: 200, msg: '优化成功', data: result });
@@ -131,13 +131,13 @@ app.post('/api/optimize_text', async (req, res) => {
 
 app.post('/api/summarize_text', async (req, res) => {
   try {
-    const { text, question = '' } = req.body;
+    const { text, question = '', model = null, custom_config = null } = req.body;
 
     if (!text) {
       return res.status(400).json({ code: 400, msg: '没有可总结的文本' });
     }
 
-    const result = await summarizeText(text, question);
+    const result = await summarizeText(text, question, model, custom_config);
 
     if (result.success) {
       res.json({ code: 200, msg: '总结成功', data: result });
@@ -148,6 +148,18 @@ app.post('/api/summarize_text', async (req, res) => {
     console.error(`[Server] summarize_text error: ${error.message}`);
     res.status(500).json({ code: 500, msg: `总结失败：${error.message}` });
   }
+});
+
+app.get('/api/ai_models', (req, res) => {
+  const { DEFAULT_MODEL, MODEL_MAPPING } = require('./services/aiService');
+  const models = Object.keys(MODEL_MAPPING);
+  res.json({
+    code: 200,
+    data: {
+      models: models,
+      default: DEFAULT_MODEL
+    }
+  });
 });
 
 app.listen(port, () => {
