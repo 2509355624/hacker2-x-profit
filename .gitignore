@@ -1,36 +1,67 @@
+# Dependencies
+node_modules/
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
+*.pyc
+*.pyo
+*.pyd
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
+*.so
 *.egg
+*.egg-info/
+dist/
+build/
+
+# Environment
 .env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-media/temp_video/
-media/temp_audio/
-models/whisper/
-*.pt
-*.pth
-.DS_Store
+.env.local
+.env.*.local
+
+# Output files
+output_audio/
+*.wav
+*.mp3
+*.m4a
+*.flac
+*.ogg
+*.aac
+
+# Temp files
+temp/video/
+temp/audio/
 *.log
-db.sqlite3
-staticfiles/
+
+# Test outputs
+tests/output/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Video/Audio source files
+*.mp4
+*.avi
+*.mkv
+*.mov
+*.flv
+
+# Specific files to ignore
+1.mp4
+xiaoyang.mp4
+audio_25s.aac
+output_audio.aac
+1_transcription.txt
+transcription.txt
+xiaoyang_transcription.txt
+.env_list
+videotools.py
+transcribe_1.py
+uploadAndStatus.py
+demo_tts_call.py
+start_server.bat

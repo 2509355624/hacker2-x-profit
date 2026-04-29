@@ -78,21 +78,20 @@ async function callAI(prompt, modelName = null, customConfig = null) {
 }
 
 async function optimizeChunk(chunk, modelName, customConfig) {
-  const prompt = `你是一个专业的语音识别文本优化助手。以下文本是从视频/音频中通过AI语音识别得到的，可能存在同音字错误、简繁体混杂、标点错误等问题。
+  const prompt = `你是一个专业的语音识别文本优化助手。以下文本是从视频/音频中通过AI语音识别得到的，可能存在同音字错误、简繁体混杂、标点错误、多行分段格式混乱等问题。
 
 请对以下文本进行优化：
 1. 修正明显的同音字错误
 2. 统一简繁体（全部转为简体）
 3. 修正明显的错别字
-4. 修正标点符号
+4. 将原本分行的诗歌/歌词格式转换为连续段落格式，用恰当的标点符号（，。；：）分隔句子
 5. 保持原文的语义和风格不变
-
-只返回优化后的文本，不要任何解释或备注。
+6. 只输出优化后的文本内容，不要任何解释、备注或引用格式
 
 原文：
 ${chunk}
 
-优化后：`;
+优化后（连续段落格式）：`;
 
   return callAI(prompt, modelName, customConfig);
 }

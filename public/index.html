@@ -84,9 +84,9 @@
                 </div>
 
                 <div class="mb-4">
-                    <textarea id="textResult" readonly
+                    <textarea id="textResult"
                         class="w-full border p-3 rounded-lg h-64 resize-y font-mono text-sm"
-                        placeholder="转写结果将显示在这里..."></textarea>
+                        placeholder="转写结果将显示在这里，可以自由编辑和粘贴..."></textarea>
                     <div class="flex gap-2 mt-2">
                         <button onclick="copyText()" class="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-300">复制文本</button>
                         <button onclick="selectAllText()" class="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-300">全选</button>
@@ -126,6 +126,162 @@
                             <button onclick="copySummarize()" id="copySummarizeBtn" class="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-300 hidden">复制总结</button>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="border-t my-6"></div>
+
+        <div id="ttsSection">
+            <h2 class="font-bold mb-2">🔊 TTS朗读转写内容</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">参考音频</label>
+                    <select id="refAudio" class="w-full border rounded px-3 py-2" onchange="onRefAudioChange()">
+                        <option value="">请选择参考音频</option>
+                        <option value="ref_audio/pure_voice_25s.wav_0000131520_0000358080.wav">我的声音 (xiaoyang)</option>
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">参考音频路径: <span id="refAudioPath" class="text-blue-600">未选择</span></p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">参考音频文本</label>
+                    <input type="text" id="promptText" placeholder="参考音频对应的文字" value="圈里或者任何地方去找五样东西，去看看五样东西，然后去听四种声音。" class="w-full border rounded px-3 py-2">
+                    <label class="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                        <input type="checkbox" id="refTextFree" checked onchange="toggleRefTextFree()">
+                        <span>不使用参考文本（推荐）</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="mb-4 p-3 bg-gray-50 rounded border">
+                <h3 class="font-medium mb-2">朗读参数</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div>
+                        <label class="block text-xs text-gray-600 mb-1">语速 (speed_factor)</label>
+                        <select id="speedFactor" class="w-full border rounded px-2 py-1 text-sm">
+                            <option value="0.5">0.5x (慢)</option>
+                            <option value="0.75">0.75x</option>
+                            <option value="1" selected>1x (正常)</option>
+                            <option value="1.25">1.25x</option>
+                            <option value="1.5">1.5x</option>
+                            <option value="2">2x (快)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-600 mb-1">采样步数 (sample_steps)</label>
+                        <select id="sampleSteps" class="w-full border rounded px-2 py-1 text-sm">
+                            <option value="4">4 (快)</option>
+                            <option value="8">8</option>
+                            <option value="16">16</option>
+                            <option value="32" selected>32 (推荐)</option>
+                            <option value="48">48</option>
+                            <option value="64">64</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-600 mb-1">文本切分方式</label>
+                        <select id="textSplitMethod" class="w-full border rounded px-2 py-1 text-sm">
+                            <option value="不切" selected>不切</option>
+                            <option value="凑四句一切">凑四句一切</option>
+                            <option value="凑50字一切">凑50字一切</option>
+                            <option value="按中文句号。切">按中文句号。切</option>
+                            <option value="按英文句号.切">按英文句号.切</option>
+                            <option value="按标点符号切">按标点符号切</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-600 mb-1">top_k</label>
+                        <input type="number" id="topK" value="5" min="1" max="100" class="w-full border rounded px-2 py-1 text-sm">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-4 mb-4">
+                <button onclick="speakText()" id="speakBtn" class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 flex items-center gap-2">
+                    <span>🔊</span> 朗读转写内容
+                </button>
+                <div id="ttsStatus" class="text-sm text-gray-500"></div>
+            </div>
+
+            <div id="audioPlayerSection" class="hidden">
+                <h3 class="font-medium mb-2">生成的音频</h3>
+                <audio id="ttsAudioPlayer" controls class="w-full"></audio>
+                <div class="flex gap-2 mt-2">
+                    <button onclick="downloadAudio()" class="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600">下载音频</button>
+                </div>
+            </div>
+
+            <div class="mt-4 p-3 bg-yellow-50 rounded border border-yellow-200">
+                <h3 class="font-medium mb-2 text-yellow-800">📑 批量TTS朗读（分段处理）</h3>
+                <div class="flex flex-wrap items-center gap-3 mb-3">
+                    <div>
+                        <label class="block text-xs text-gray-600 mb-1">分段长度（字符数）</label>
+                        <select id="splitLength" class="border rounded px-2 py-1 text-sm">
+                            <option value="100">100字符</option>
+                            <option value="200">200字符</option>
+                            <option value="300">300字符</option>
+                            <option value="400">400字符</option>
+                            <option value="500" selected>500字符</option>
+                            <option value="600">600字符</option>
+                            <option value="700">700字符</option>
+                        </select>
+                    </div>
+                    <button onclick="speakTextBatch()" id="speakBatchBtn" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 flex items-center gap-2">
+                        <span>📑</span> 分段朗读全部文本
+                    </button>
+                    <button onclick="mergeAudio()" id="mergeBtn" class="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600 hidden flex items-center gap-2">
+                        <span>🔗</span> 合并所有音频
+                    </button>
+                </div>
+                <div id="batchProgress" class="hidden">
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="flex-1 bg-gray-200 rounded-full h-2">
+                            <div id="progressBar" class="bg-purple-500 h-2 rounded-full transition-all" style="width: 0%"></div>
+                        </div>
+                        <span id="progressText" class="text-sm text-gray-600">0/0</span>
+                    </div>
+                    <div id="batchStatus" class="text-sm text-gray-500"></div>
+                    <div id="batchSegments" class="mt-2 text-xs text-gray-500 max-h-20 overflow-y-auto"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="border-t my-6"></div>
+
+        <div class="p-3 bg-blue-50 rounded border border-blue-200">
+            <h2 class="font-bold mb-2 text-blue-800">🎵 音频文件合并</h2>
+            <p class="text-xs text-gray-600 mb-3">上传带编号的音频文件（1.wav, 2.wav, 3.wav...），系统会自动按编号排序后合并</p>
+            <div class="flex flex-wrap items-center gap-3 mb-3">
+                <input type="file" id="audioFilesInput" multiple accept=".wav,.mp3,.m4a,.flac,.ogg" class="hidden" onchange="handleAudioFilesSelect(this)">
+                <button onclick="document.getElementById('audioFilesInput').click()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 flex items-center gap-2">
+                    <span>📁</span> 选择音频文件
+                </button>
+                <button onclick="uploadAndMergeAudio()" id="uploadMergeBtn" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 hidden flex items-center gap-2">
+                    <span>🔗</span> 上传并合并
+                </button>
+                <button onclick="clearAudioList()" id="clearAudioBtn" class="bg-gray-400 text-white px-3 py-2 rounded hover:bg-gray-500 hidden text-sm">
+                    清空列表
+                </button>
+            </div>
+            <div id="audioFileList" class="hidden">
+                <h4 class="text-sm font-medium text-gray-700 mb-2">待合并文件（按编号排序）：</h4>
+                <ul id="audioFilesUl" class="text-xs text-gray-600 max-h-32 overflow-y-auto"></ul>
+            </div>
+            <div id="uploadProgress" class="hidden mt-2">
+                <div class="flex items-center gap-2">
+                    <div class="flex-1 bg-gray-200 rounded-full h-2">
+                        <div id="uploadProgressBar" class="bg-green-500 h-2 rounded-full transition-all" style="width: 0%"></div>
+                    </div>
+                    <span id="uploadProgressText" class="text-sm text-gray-600">0%</span>
+                </div>
+                <div id="uploadStatus" class="text-sm text-gray-500 mt-1"></div>
+            </div>
+            <div id="mergedAudioSection" class="hidden mt-3">
+                <h4 class="text-sm font-medium text-gray-700 mb-2">✅ 合并完成：</h4>
+                <audio id="mergedAudioPlayer" controls class="w-full"></audio>
+                <div class="flex gap-2 mt-2">
+                    <button onclick="downloadMergedAudio()" class="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600">下载合并音频</button>
                 </div>
             </div>
         </div>
@@ -468,6 +624,431 @@
             } finally {
                 btn.disabled = false;
                 btn.textContent = '🤖 AI总结视频';
+            }
+        }
+
+        let currentAudioUrl = null;
+
+        function onRefAudioChange() {
+            const refAudio = document.getElementById('refAudio').value;
+            document.getElementById('refAudioPath').textContent = refAudio || '未选择';
+        }
+
+        async function speakText() {
+            const text = document.getElementById('textResult').value;
+            if (!text.trim()) {
+                alert('没有可朗读的文本，请先进行视频转写');
+                return;
+            }
+
+            const refAudio = document.getElementById('refAudio').value;
+            if (!refAudio) {
+                alert('请选择参考音频');
+                return;
+            }
+
+            const promptText = document.getElementById('promptText').value.trim();
+            if (!promptText) {
+                alert('请输入参考音频对应的文本');
+                return;
+            }
+
+            const btn = document.getElementById('speakBtn');
+            const status = document.getElementById('ttsStatus');
+            const audioSection = document.getElementById('audioPlayerSection');
+
+            btn.disabled = true;
+            btn.textContent = '生成中...';
+            status.textContent = '正在生成音频，请稍候...';
+            audioSection.classList.add('hidden');
+
+            const requestBody = {
+                text: text,
+                text_lang: '中文',
+                ref_audio_path: refAudio,
+                aux_ref_audio_paths: [],
+                prompt_text: promptText,
+                prompt_lang: '中文',
+                top_k: parseInt(document.getElementById('topK').value),
+                top_p: 1,
+                temperature: 1,
+                text_split_method: document.getElementById('textSplitMethod').value,
+                batch_size: 20,
+                speed_factor: parseFloat(document.getElementById('speedFactor').value),
+                ref_text_free: true,
+                split_bucket: true,
+                fragment_interval: 0.3,
+                seed: -1,
+                keep_random: true,
+                parallel_infer: true,
+                repetition_penalty: 1.35,
+                sample_steps: parseInt(document.getElementById('sampleSteps').value),
+                super_sampling: false
+            };
+
+            try {
+                const res = await fetch('/api/tts', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(requestBody)
+                });
+                const data = await res.json();
+
+                if (data.code === 200) {
+                    currentAudioUrl = data.data.audio_path;
+                    const audioPlayer = document.getElementById('ttsAudioPlayer');
+                    audioPlayer.src = currentAudioUrl;
+                    audioSection.classList.remove('hidden');
+                    status.textContent = '生成成功！';
+                } else {
+                    alert(data.msg);
+                    status.textContent = '生成失败';
+                }
+            } catch (e) {
+                alert('朗读失败：' + e.message);
+                status.textContent = '生成失败';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔊 朗读转写内容';
+            }
+        }
+
+        function downloadAudio() {
+            if (currentAudioUrl) {
+                const a = document.createElement('a');
+                a.href = currentAudioUrl;
+                a.download = 'tts_output.wav';
+                a.click();
+            }
+        }
+
+        let batchAudioPaths = [];
+        let currentMergedUrl = null;
+
+        function toggleRefTextFree() {
+            const refTextFree = document.getElementById('refTextFree').checked;
+            const promptTextInput = document.getElementById('promptText');
+            if (refTextFree) {
+                promptTextInput.disabled = true;
+                promptTextInput.style.opacity = '0.5';
+            } else {
+                promptTextInput.disabled = false;
+                promptTextInput.style.opacity = '1';
+            }
+        }
+
+        function splitTextByLength(text, maxLength) {
+            const segments = [];
+            let current = 0;
+            while (current < text.length) {
+                let end = Math.min(current + maxLength, text.length);
+                if (end < text.length) {
+                    const lastPunctuation = Math.max(
+                        text.lastIndexOf('。', end),
+                        text.lastIndexOf('，', end),
+                        text.lastIndexOf('！', end),
+                        text.lastIndexOf('？', end),
+                        text.lastIndexOf('；', end),
+                        text.lastIndexOf('：', end),
+                        text.lastIndexOf('\n', end)
+                    );
+                    if (lastPunctuation > current + maxLength * 0.5) {
+                        end = lastPunctuation + 1;
+                    }
+                }
+                segments.push(text.slice(current, end));
+                current = end;
+            }
+            return segments;
+        }
+
+        async function speakTextBatch() {
+            const text = document.getElementById('textResult').value;
+            if (!text.trim()) {
+                alert('没有可朗读的文本，请先进行视频转写');
+                return;
+            }
+
+            const refAudio = document.getElementById('refAudio').value;
+            if (!refAudio) {
+                alert('请选择参考音频');
+                return;
+            }
+
+            const refTextFree = document.getElementById('refTextFree').checked;
+            const promptText = document.getElementById('promptText').value.trim();
+
+            if (!refTextFree && !promptText) {
+                alert('请输入参考音频对应的文本（或勾选不使用参考文本）');
+                return;
+            }
+
+            const splitLength = parseInt(document.getElementById('splitLength').value);
+            const segments = splitTextByLength(text, splitLength);
+
+            const batchBtn = document.getElementById('speakBatchBtn');
+            const mergeBtn = document.getElementById('mergeBtn');
+            const batchProgress = document.getElementById('batchProgress');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const batchStatus = document.getElementById('batchStatus');
+            const batchSegments = document.getElementById('batchSegments');
+
+            batchAudioPaths = [];
+            batchBtn.disabled = true;
+            batchBtn.textContent = '处理中...';
+            mergeBtn.classList.add('hidden');
+            batchProgress.classList.remove('hidden');
+            batchSegments.innerHTML = '';
+
+            for (let i = 0; i < segments.length; i++) {
+                const segment = segments[i].trim();
+                if (!segment) continue;
+
+                progressBar.style.width = `${(i / segments.length) * 100}%`;
+                progressText.textContent = `${i}/${segments.length}`;
+                batchStatus.textContent = `正在处理第 ${i + 1}/${segments.length} 段...`;
+                batchSegments.innerHTML += `<div class="text-gray-600">[${i + 1}] ${segment.slice(0, 30)}...</div>`;
+
+                const requestBody = {
+                    text: segment,
+                    text_lang: '中文',
+                    ref_audio_path: refAudio,
+                    aux_ref_audio_paths: [],
+                    prompt_text: promptText,
+                    prompt_lang: '中文',
+                    top_k: parseInt(document.getElementById('topK').value),
+                    top_p: 1,
+                    temperature: 1,
+                    text_split_method: '不切',
+                    batch_size: 20,
+                    speed_factor: parseFloat(document.getElementById('speedFactor').value),
+                    ref_text_free: refTextFree,
+                    split_bucket: true,
+                    fragment_interval: 0.3,
+                    seed: -1,
+                    keep_random: true,
+                    parallel_infer: true,
+                    repetition_penalty: 1.35,
+                    sample_steps: parseInt(document.getElementById('sampleSteps').value),
+                    super_sampling: false
+                };
+
+                try {
+                    const res = await fetch('/api/tts', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(requestBody)
+                    });
+                    const data = await res.json();
+
+                    if (data.code === 200) {
+                        batchAudioPaths.push(data.data.audio_path);
+                    } else {
+                        console.error(`Segment ${i + 1} failed:`, data.msg);
+                    }
+                } catch (e) {
+                    console.error(`Segment ${i + 1} error:`, e.message);
+                }
+            }
+
+            progressBar.style.width = '100%';
+            progressText.textContent = `${segments.length}/${segments.length}`;
+            batchStatus.textContent = '所有段落处理完成！';
+            batchBtn.disabled = false;
+            batchBtn.textContent = '📑 分段朗读全部文本';
+
+            if (batchAudioPaths.length > 0) {
+                mergeBtn.classList.remove('hidden');
+                batchSegments.innerHTML += `<div class="text-green-600 mt-2 font-medium">✅ 成功生成 ${batchAudioPaths.length}/${segments.length} 个音频片段</div>`;
+            } else {
+                batchSegments.innerHTML += `<div class="text-red-600 mt-2 font-medium">❌ 所有音频片段生成失败</div>`;
+            }
+        }
+
+        async function mergeAudio() {
+            if (batchAudioPaths.length === 0) {
+                alert('没有可合并的音频文件');
+                return;
+            }
+
+            const mergeBtn = document.getElementById('mergeBtn');
+            const batchStatus = document.getElementById('batchStatus');
+            const batchSegments = document.getElementById('batchSegments');
+
+            mergeBtn.disabled = true;
+            mergeBtn.textContent = '合并中...';
+            batchStatus.textContent = '正在合并音频，请稍候...';
+
+            try {
+                const res = await fetch('/api/tts/merge', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        audio_paths: batchAudioPaths,
+                        output_filename: `merged_${Date.now()}.wav`
+                    })
+                });
+                const data = await res.json();
+
+                if (data.code === 200) {
+                    currentMergedUrl = data.data.output_path;
+                    batchStatus.textContent = '合并成功！';
+                    batchSegments.innerHTML += `<div class="text-green-600 mt-2 font-medium">✅ 音频合并完成</div>`;
+
+                    const mergedAudioPlayer = document.getElementById('ttsAudioPlayer');
+                    mergedAudioPlayer.src = currentMergedUrl;
+                    document.getElementById('audioPlayerSection').classList.remove('hidden');
+
+                    const downloadMergedBtn = document.createElement('button');
+                    downloadMergedBtn.className = 'bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600 ml-2';
+                    downloadMergedBtn.textContent = '下载合并音频';
+                    downloadMergedBtn.onclick = () => {
+                        if (currentMergedUrl) {
+                            const a = document.createElement('a');
+                            a.href = currentMergedUrl;
+                            a.download = 'merged_tts_output.wav';
+                            a.click();
+                        }
+                    };
+                    downloadMergedBtn.click();
+                    mergedAudioPlayer.parentElement.querySelector('.flex').appendChild(downloadMergedBtn);
+                } else {
+                    alert('合并失败：' + data.msg);
+                    batchStatus.textContent = '合并失败';
+                }
+            } catch (e) {
+                alert('合并失败：' + e.message);
+                batchStatus.textContent = '合并失败';
+            } finally {
+                mergeBtn.disabled = false;
+                mergeBtn.textContent = '🔗 合并所有音频';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', toggleRefTextFree);
+
+        let selectedAudioFiles = [];
+        let uploadedAudioPaths = [];
+
+        function handleAudioFilesSelect(input) {
+            selectedAudioFiles = Array.from(input.files);
+            if (selectedAudioFiles.length === 0) return;
+
+            const sortedFiles = selectedAudioFiles.sort((a, b) => {
+                const numA = parseInt(a.name.match(/^(\d+)/)?.[1] || '0');
+                const numB = parseInt(b.name.match(/^(\d+)/)?.[1] || '0');
+                return numA - numB;
+            });
+            selectedAudioFiles = sortedFiles;
+
+            const fileListDiv = document.getElementById('audioFileList');
+            const filesUl = document.getElementById('audioFilesUl');
+            const uploadMergeBtn = document.getElementById('uploadMergeBtn');
+            const clearAudioBtn = document.getElementById('clearAudioBtn');
+
+            filesUl.innerHTML = '';
+            selectedAudioFiles.forEach((file, index) => {
+                const li = document.createElement('li');
+                li.className = 'py-1';
+                li.textContent = `${index + 1}. ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+                filesUl.appendChild(li);
+            });
+
+            fileListDiv.classList.remove('hidden');
+            uploadMergeBtn.classList.remove('hidden');
+            clearAudioBtn.classList.remove('hidden');
+            document.getElementById('mergedAudioSection').classList.add('hidden');
+        }
+
+        function clearAudioList() {
+            selectedAudioFiles = [];
+            uploadedAudioPaths = [];
+            document.getElementById('audioFilesInput').value = '';
+            document.getElementById('audioFileList').classList.add('hidden');
+            document.getElementById('uploadMergeBtn').classList.add('hidden');
+            document.getElementById('clearAudioBtn').classList.add('hidden');
+            document.getElementById('mergedAudioSection').classList.add('hidden');
+            document.getElementById('uploadProgress').classList.add('hidden');
+        }
+
+        async function uploadAndMergeAudio() {
+            if (selectedAudioFiles.length === 0) {
+                alert('请先选择音频文件');
+                return;
+            }
+
+            const uploadMergeBtn = document.getElementById('uploadMergeBtn');
+            const uploadProgress = document.getElementById('uploadProgress');
+            const progressBar = document.getElementById('uploadProgressBar');
+            const progressText = document.getElementById('uploadProgressText');
+            const uploadStatus = document.getElementById('uploadStatus');
+
+            uploadMergeBtn.disabled = true;
+            uploadMergeBtn.textContent = '上传中...';
+            uploadProgress.classList.remove('hidden');
+            uploadedAudioPaths = [];
+
+            const formData = new FormData();
+            selectedAudioFiles.forEach(file => {
+                formData.append('audio_files', file);
+            });
+
+            try {
+                const res = await fetch('/api/audio/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (data.code === 200) {
+                    uploadedAudioPaths = data.data.audio_paths;
+                    uploadStatus.textContent = '文件上传成功，正在合并...';
+                    progressBar.style.width = '50%';
+                    progressText.textContent = '50%';
+
+                    const mergeRes = await fetch('/api/tts/merge', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            audio_paths: uploadedAudioPaths,
+                            output_filename: `upload_merged_${Date.now()}.wav`
+                        })
+                    });
+                    const mergeData = await mergeRes.json();
+
+                    if (mergeData.code === 200) {
+                        progressBar.style.width = '100%';
+                        progressText.textContent = '100%';
+                        uploadStatus.textContent = '合并完成！';
+
+                        const mergedAudioPlayer = document.getElementById('mergedAudioPlayer');
+                        mergedAudioPlayer.src = mergeData.data.output_path;
+                        document.getElementById('mergedAudioSection').classList.remove('hidden');
+                    } else {
+                        alert('合并失败：' + mergeData.msg);
+                        uploadStatus.textContent = '合并失败';
+                    }
+                } else {
+                    alert('上传失败：' + data.msg);
+                    uploadStatus.textContent = '上传失败';
+                }
+            } catch (e) {
+                alert('操作失败：' + e.message);
+                uploadStatus.textContent = '操作失败';
+            } finally {
+                uploadMergeBtn.disabled = false;
+                uploadMergeBtn.textContent = '🔗 上传并合并';
+            }
+        }
+
+        function downloadMergedAudio() {
+            const mergedAudioPlayer = document.getElementById('mergedAudioPlayer');
+            if (mergedAudioPlayer.src) {
+                const a = document.createElement('a');
+                a.href = mergedAudioPlayer.src;
+                a.download = 'merged_audio.wav';
+                a.click();
             }
         }
     </script>
